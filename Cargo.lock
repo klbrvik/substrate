@@ -9343,6 +9343,7 @@ name = "sc-network-gossip"
 version = "0.10.0-dev"
 dependencies = [
  "ahash 0.8.3",
+ "async-trait",
  "futures",
  "futures-timer",
  "libp2p",
