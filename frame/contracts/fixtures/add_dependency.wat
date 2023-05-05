@@ -1,0 +1,95 @@
+;; This contract tests the behavior of adding / removing dependencies when delegate calling into a contract.
+(module
+	(import "seal0" "add_dependency" (func $add_dependency (param i32) (result i32)))
+	(import "seal0" "remove_dependency" (func $remove_dependency (param i32) (result i32)))
+	(import "seal0" "seal_input" (func $seal_input (param i32 i32)))
+	(import "seal0" "seal_delegate_call" (func $seal_delegate_call (param i32 i32 i32 i32 i32 i32) (result i32)))
+	(import "env" "memory" (memory 1 1))
+
+	(func $assert (param i32)
+		(block $ok
+			(br_if $ok
+				(get_local 0)
+			)
+			(unreachable)
+		)
+	)
+
+	;; This function loads input data and performs the action specified.
+	;; The first 4 bytes of the input specify the action to perform.
+	;; if the action is 1 we call add_dependency, if the action is 2 we call remove_dependency.
+	;; The next 32 bytes specify the code hash to use when calling add_dependency or remove_dependency.
+	(func $load_input
+		(local $action i32)
+		(local $code_hash_ptr i32)
+
+	    ;; Store available input size at offset 0.
+        (i32.store (i32.const 0) (i32.const 512))
+
+		;; Read input data
+		(call $seal_input (i32.const 4) (i32.const 0))
+
+		;; Input data layout.
+		;; [0..4) - size of the call
+		;; [4..8) - action to perform before calling delegate_call (1: add_dependency, 2: remove_dependency, default: nothing)
+		;; [8..42) - code hash of the callee
+		(set_local $action (i32.load (i32.const 4)))
+		(set_local $code_hash_ptr (i32.const 8))
+
+		;; Assert input size == 36 (4 for action + 32 for code_hash).
+		(call $assert
+			(i32.eq
+				(i32.load (i32.const 0))
+				(i32.const 36)
+			)
+		)
+
+		;; Call add_dependency when action == 1.
+		(if (i32.eq (get_local $action) (i32.const 1))
+		    (then
+				(call $assert (i32.eqz
+					(call $add_dependency
+						(get_local $code_hash_ptr)
+					)
+				))
+			)
+			(else)
+		)
+
+		;; Call remove_dependency when action == 2.
+		(if (i32.eq (get_local $action) (i32.const 2))
+		    (then
+				(call $assert (i32.eqz
+					(call $remove_dependency
+						(get_local $code_hash_ptr)
+					)
+				))
+			)
+			(else)
+		)
+	)
+
+	(func (export "deploy")
+		(call $load_input)
+	)
+
+	(func (export "call")
+		(call $load_input)
+
+		;; Delegate call into passed code hash.
+		(call $assert
+			(i32.eq
+				(call $seal_delegate_call
+					(i32.const 0)	;; Set no call flags.
+					(i32.const 8)	;; Pointer to "callee" code_hash.
+					(i32.const 0)	;; Input is ignored.
+					(i32.const 0)	;; Length of the input.
+					(i32.const 4294967295)	;; u32 max sentinel value: do not copy output.
+					(i32.const 0)	;; Length is ignored in this case.
+				)
+				(i32.const 0)
+			)
+		)
+	)
+
+)

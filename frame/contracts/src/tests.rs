@@ -44,6 +44,7 @@ use frame_support::{
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::{EventRecord, Phase};
+use pallet_contracts_primitives::CodeUploadReturnValue;
 use pretty_assertions::{assert_eq, assert_ne};
 use sp_core::ByteArray;
 use sp_io::hashing::blake2_256;
@@ -51,7 +52,7 @@ use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::{
 	testing::{Header, H256},
 	traits::{BlakeTwo256, Convert, Hash, IdentityLookup},
-	AccountId32, TokenError,
+	AccountId32, Perbill, TokenError,
 };
 use std::ops::Deref;
 
@@ -5123,6 +5124,106 @@ fn delegate_call_indeterministic_code() {
 			)
 			.result
 		);
+	});
+}
+
+#[test]
+fn add_remove_dependency_works() {
+	let (wasm_caller, _) = compile_module::<Test>("add_dependency").unwrap();
+	let (wasm_callee, code_hash) = compile_module::<Test>("dummy").unwrap();
+
+	let input = (0u32, code_hash);
+	let add_dependency_input = (1u32, code_hash);
+	let remove_dependency_input = (2u32, code_hash);
+
+	// Instantiate the caller contract with the given input.
+	let instantiate = |input: &(u32, H256)| {
+		Contracts::bare_instantiate(
+			ALICE,
+			0,
+			GAS_LIMIT,
+			None,
+			Code::Upload(wasm_caller.clone()),
+			input.encode(),
+			vec![],
+			DebugInfo::Skip,
+			CollectEvents::Skip,
+		)
+	};
+
+	// Call contract with the given input.
+	let call = |addr_caller: &AccountId32, input: &(u32, H256)| {
+		<Pallet<Test>>::bare_call(
+			ALICE,
+			addr_caller.clone(),
+			0,
+			GAS_LIMIT,
+			None,
+			input.encode(),
+			DebugInfo::UnsafeDebug,
+			CollectEvents::Skip,
+			Determinism::Enforced,
+		)
+	};
+
+	const ED: u64 = 200;
+	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
+		let _ = Balances::deposit_creating(&ALICE, 1_000_000);
+
+		// Instantiate with add_dependency should fail since the code is not yet on chain.
+		assert_err!(instantiate(&add_dependency_input).result, Error::<Test>::CodeNotFound);
+
+		// Upload the delegated code.
+		let CodeUploadReturnValue { deposit, .. } =
+			Contracts::bare_upload_code(ALICE, wasm_callee, None, Determinism::Enforced).unwrap();
+
+		// Instantiate should now works.
+		let addr_caller = instantiate(&add_dependency_input).result.unwrap().account_id;
+
+		// There should be a dependency and a deposit.
+		let contract = test_utils::get_contract(&addr_caller);
+		let dependency_deposit = &Perbill::from_percent(30).mul_ceil(deposit);
+		assert_eq!(contract.dependencies().get(&code_hash), Some(dependency_deposit));
+		assert_eq!(test_utils::get_balance(contract.deposit_account()), ED + dependency_deposit);
+
+		// Removing the code should fail, since we have added a dependency.
+		assert_err!(
+			Contracts::remove_code(RuntimeOrigin::signed(ALICE), code_hash),
+			<Error<Test>>::CodeInUse
+		);
+
+		// Adding an already existing dependency should fail.
+		assert_err!(
+			call(&addr_caller, &add_dependency_input).result,
+			Error::<Test>::DependencyAlreadyExists
+		);
+
+		// Calling and removing dependency should work.
+		assert_ok!(call(&addr_caller, &remove_dependency_input).result);
+
+		// Dependency should be removed, and deposit should be returned.
+		let contract = test_utils::get_contract(&addr_caller);
+		assert!(contract.dependencies().is_empty());
+		assert_eq!(test_utils::get_balance(contract.deposit_account()), ED);
+
+		// Removing an unexisting dependency should fail.
+		assert_err!(
+			call(&addr_caller, &remove_dependency_input).result,
+			Error::<Test>::DependencyNotFound
+		);
+
+		// Adding a depedendency with a storage limit too low should fail.
+		DEFAULT_DEPOSIT_LIMIT.with(|c| *c.borrow_mut() = dependency_deposit - 1);
+		assert_err!(
+			call(&addr_caller, &add_dependency_input).result,
+			Error::<Test>::StorageDepositLimitExhausted
+		);
+
+		// Since we removed the dependency we should now be able to remove the code.
+		assert_ok!(Contracts::remove_code(RuntimeOrigin::signed(ALICE), code_hash));
+
+		// Calling should fail since the delegated contract is not on chain anymore.
+		assert_err!(call(&addr_caller, &input).result, Error::<Test>::ContractTrapped);
 	});
 }
 

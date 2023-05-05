@@ -18,8 +18,9 @@
 use crate::{
 	gas::GasMeter,
 	storage::{self, DepositAccount, WriteOutcome},
+	wasm::{decrement_refcount, increment_refcount},
 	BalanceOf, CodeHash, Config, ContractInfo, ContractInfoOf, DebugBufferVec, Determinism, Error,
-	Event, Nonce, Origin, Pallet as Contracts, Schedule, System, LOG_TARGET,
+	Event, Nonce, Origin, OwnerInfoOf, Pallet as Contracts, Schedule, System, LOG_TARGET,
 };
 use frame_support::{
 	crypto::ecdsa::ECDSAExt,
@@ -35,14 +36,17 @@ use frame_support::{
 	Blake2_128Concat, BoundedVec, StorageHasher,
 };
 use frame_system::RawOrigin;
-use pallet_contracts_primitives::ExecReturnValue;
+use pallet_contracts_primitives::{ExecReturnValue, StorageDeposit};
 use smallvec::{Array, SmallVec};
 use sp_core::{
 	ecdsa::Public as ECDSAPublic,
 	sr25519::{Public as SR25519Public, Signature as SR25519Signature},
 };
 use sp_io::{crypto::secp256k1_ecdsa_recover_compressed, hashing::blake2_256};
-use sp_runtime::traits::{Convert, Hash, Zero};
+use sp_runtime::{
+	traits::{Convert, Hash, Zero},
+	Perbill,
+};
 use sp_std::{marker::PhantomData, mem, prelude::*, vec::Vec};
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -306,6 +310,22 @@ pub trait Ext: sealing::Sealed {
 
 	/// Returns a nonce that is incremented for every instantiated contract.
 	fn nonce(&mut self) -> u64;
+
+	/// Add a contract dependency, This is useful for contract delegation, to make sure that the
+	/// delegated contract is not removed while it is still in use.
+	/// This will increase the reference count of the code hash, and charge a deposit of 30% of the
+	/// code deposit.
+	///
+	/// Returns an error if we have reached the maximum number of dependencies, or the dependency
+	/// already exists.
+	fn add_dependency(&mut self, _code: CodeHash<Self::T>) -> Result<(), DispatchError>;
+
+	/// Remove a contract dependency.
+	/// This is the counterpart of `add_dependency`. This method will decrease the reference count
+	/// And refund the deposit that was charged by `add_dependency`.
+	///
+	/// Returns an error if the dependency does not exist.
+	fn remove_dependency(&mut self, _code: CodeHash<Self::T>) -> Result<(), DispatchError>;
 }
 
 /// Describes the different functions that can be exported by an [`Executable`].
@@ -1460,6 +1480,30 @@ where
 			self.nonce = Some(current);
 			current
 		}
+	}
+	fn add_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError> {
+		let frame = self.top_frame_mut();
+		let info = frame.contract_info.get(&frame.account_id);
+
+		increment_refcount::<T>(code_hash)?;
+		let owner_info = OwnerInfoOf::<T>::get(code_hash).ok_or(Error::<T>::ContractNotFound)?;
+		let deposit = Perbill::from_percent(30).mul_ceil(owner_info.deposit());
+
+		frame
+			.nested_storage
+			.charge_dependency(info.deposit_account(), &StorageDeposit::Charge(deposit));
+		info.add_dependency(code_hash, deposit)
+	}
+
+	fn remove_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError> {
+		let frame = self.top_frame_mut();
+		let info = frame.contract_info.get(&frame.account_id);
+		let deposit = info.remove_dependency(code_hash)?;
+		decrement_refcount::<T>(code_hash);
+		frame
+			.nested_storage
+			.charge_dependency(info.deposit_account(), &StorageDeposit::Refund(deposit));
+		Ok(())
 	}
 }
 

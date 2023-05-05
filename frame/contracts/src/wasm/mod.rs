@@ -32,6 +32,7 @@ pub use crate::wasm::runtime::api_doc;
 pub use tests::MockExt;
 
 pub use crate::wasm::{
+	code_cache::{decrement_refcount, increment_refcount},
 	prepare::TryInstantiate,
 	runtime::{
 		AllowDeprecatedInterface, AllowUnstableInterface, CallFlags, Environment, ReturnCode,
@@ -289,6 +290,11 @@ impl<T: Config> OwnerInfo<T> {
 	pub fn refcount(&self) -> u64 {
 		self.refcount
 	}
+
+	/// Return the deposit of the module.
+	pub fn deposit(&self) -> BalanceOf<T> {
+		self.deposit
+	}
 }
 
 impl<T: Config> Executable<T> for PrefabWasmModule<T> {
@@ -383,7 +389,10 @@ mod tests {
 	use std::{
 		borrow::BorrowMut,
 		cell::RefCell,
-		collections::hash_map::{Entry, HashMap},
+		collections::{
+			hash_map::{Entry, HashMap},
+			HashSet,
+		},
 	};
 
 	#[derive(Debug, PartialEq, Eq)]
@@ -437,6 +446,7 @@ mod tests {
 		sr25519_verify: RefCell<Vec<([u8; 64], Vec<u8>, [u8; 32])>>,
 		code_hashes: Vec<CodeHash<Test>>,
 		caller: Origin<Test>,
+		dependencies: RefCell<HashSet<CodeHash<Test>>>,
 	}
 
 	/// The call is mocked and just returns this hardcoded value.
@@ -462,6 +472,7 @@ mod tests {
 				ecdsa_recover: Default::default(),
 				caller: Default::default(),
 				sr25519_verify: Default::default(),
+				dependencies: Default::default(),
 			}
 		}
 	}
@@ -643,6 +654,16 @@ mod tests {
 		}
 		fn nonce(&mut self) -> u64 {
 			995
+		}
+
+		fn add_dependency(&mut self, code: CodeHash<Self::T>) -> Result<(), DispatchError> {
+			self.dependencies.borrow_mut().insert(code);
+			Ok(())
+		}
+
+		fn remove_dependency(&mut self, code: CodeHash<Self::T>) -> Result<(), DispatchError> {
+			self.dependencies.borrow_mut().remove(&code);
+			Ok(())
 		}
 	}
 
@@ -3274,5 +3295,39 @@ mod tests {
 			execute(CODE_RANDOM_3, vec![], MockExt::default()),
 			<Error<Test>>::CodeRejected,
 		);
+	}
+
+	#[test]
+	fn add_remove_dependency() {
+		const CODE_ADD_REMOVE_DEPENDENCY: &str = r#"
+(module
+	(import "seal0" "add_dependency" (func $add_dependency (param i32) (result i32)))
+	(import "seal0" "remove_dependency" (func $remove_dependency (param i32) (result i32)))
+	(import "env" "memory" (memory 1 1))
+	(func (export "call")
+		(drop (call $add_dependency (i32.const 0)))
+		(drop (call $add_dependency (i32.const 32)))
+		(drop (call $remove_dependency (i32.const 32)))
+	)
+	(func (export "deploy"))
+
+	;;  hash1 (32 bytes)
+	(data (i32.const 0)
+		"\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01"
+		"\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01"
+	)
+
+	;;  hash2 (32 bytes)
+	(data (i32.const 32)
+		"\02\02\02\02\02\02\02\02\02\02\02\02\02\02\02\02"
+		"\02\02\02\02\02\02\02\02\02\02\02\02\02\02\02\02"
+	)
+)
+"#;
+		let mut mock_ext = MockExt::default();
+		assert_ok!(execute(&CODE_ADD_REMOVE_DEPENDENCY, vec![], &mut mock_ext));
+		let dependencies: Vec<_> = mock_ext.dependencies.into_inner().into_iter().collect();
+		assert_eq!(dependencies.len(), 1);
+		assert_eq!(dependencies[0].as_bytes(), [1; 32]);
 	}
 }

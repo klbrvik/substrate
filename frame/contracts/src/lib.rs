@@ -861,6 +861,12 @@ pub mod pallet {
 		CodeRejected,
 		/// An indetermistic code was used in a context where this is not permitted.
 		Indeterministic,
+		/// The contract has reached its maximum number of dependencies.
+		MaxDependenciesReached,
+		/// The dependency was not found in the contract's dependencies.
+		DependencyNotFound,
+		/// The contract already depends on the given dependency.
+		DependencyAlreadyExists,
 	}
 
 	/// A mapping from an original code hash to the original code, untouched by instrumentation.
