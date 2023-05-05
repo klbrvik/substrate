@@ -2281,6 +2281,93 @@ benchmarks! {
 	}: call(origin, instance.addr, 0u32.into(), Weight::MAX, None, vec![])
 
 	#[pov_mode = Measured]
+	add_dependency {
+		let r in 0 .. 31;
+		let code_hashes = (0..r)
+			.map(|i| {
+				let new_code = WasmModule::<T>::dummy_with_bytes(65 + i);
+				Contracts::<T>::store_code_raw(new_code.code, whitelisted_caller())?;
+				Ok(new_code.hash)
+			})
+			.collect::<Result<Vec<_>, &'static str>>()?;
+		let code_hash_len = code_hashes.get(0).map(|x| x.encode().len()).unwrap_or(0);
+		let code_hashes_bytes = code_hashes.iter().flat_map(|x| x.encode()).collect::<Vec<_>>();
+		let code_hashes_len = code_hashes_bytes.len();
+
+		let code = WasmModule::<T>::from(ModuleDefinition {
+			memory: Some(ImportedMemory::max::<T>()),
+			imported_functions: vec![ImportedFunction {
+				module: "seal0",
+				name: "add_dependency",
+				params: vec![ValueType::I32],
+				return_type: Some(ValueType::I32),
+			}],
+			data_segments: vec![
+				DataSegment {
+					offset: 0,
+					value: code_hashes_bytes,
+				},
+			],
+			call_body: Some(body::repeated_dyn(r, vec![
+				Counter(0, code_hash_len as u32), // code_hash_ptr
+				Regular(Instruction::Call(0)),
+				Regular(Instruction::Drop),
+			])),
+			.. Default::default()
+		});
+		let instance = Contract::<T>::new(code, vec![])?;
+		let origin = RawOrigin::Signed(instance.caller.clone());
+	}: call(origin, instance.addr, 0u32.into(), Weight::MAX, None, vec![])
+
+	remove_dependency {
+		let r in 0 .. 31;
+		let code_hashes = (0..r)
+			.map(|i| {
+				let new_code = WasmModule::<T>::dummy_with_bytes(65 + i);
+				Contracts::<T>::store_code_raw(new_code.code, whitelisted_caller())?;
+				Ok(new_code.hash)
+			})
+			.collect::<Result<Vec<_>, &'static str>>()?;
+		let code_hash_len = code_hashes.get(0).map(|x| x.encode().len()).unwrap_or(0);
+		let code_hashes_bytes = code_hashes.iter().flat_map(|x| x.encode()).collect::<Vec<_>>();
+		let code_hashes_len = code_hashes_bytes.len();
+
+		let code = WasmModule::<T>::from(ModuleDefinition {
+			memory: Some(ImportedMemory::max::<T>()),
+			imported_functions: vec![ImportedFunction {
+				module: "seal0",
+				name: "remove_dependency",
+				params: vec![ValueType::I32],
+				return_type: Some(ValueType::I32),
+			}, ImportedFunction {
+				module: "seal0",
+				name: "add_dependency",
+				params: vec![ValueType::I32],
+				return_type: Some(ValueType::I32),
+			}],
+			data_segments: vec![
+				DataSegment {
+					offset: 0,
+					value: code_hashes_bytes,
+				},
+			],
+			deploy_body: Some(body::repeated_dyn(r, vec![
+				Counter(0, code_hash_len as u32), // code_hash_ptr
+				Regular(Instruction::Call(1)),
+				Regular(Instruction::Drop),
+			])),
+			call_body: Some(body::repeated_dyn(r, vec![
+				Counter(0, code_hash_len as u32), // code_hash_ptr
+				Regular(Instruction::Call(0)),
+				Regular(Instruction::Drop),
+			])),
+			.. Default::default()
+		});
+		let instance = Contract::<T>::new(code, vec![])?;
+		let origin = RawOrigin::Signed(instance.caller.clone());
+	}: call(origin, instance.addr, 0u32.into(), Weight::MAX, None, vec![])
+
+	#[pov_mode = Measured]
 	seal_reentrance_count {
 		let r in 0 .. API_BENCHMARK_RUNS;
 		let code = WasmModule::<T>::from(ModuleDefinition {

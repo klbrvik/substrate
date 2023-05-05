@@ -2844,7 +2844,7 @@ pub mod env {
 	fn remove_dependency(ctx: _, memory: _, code_hash_ptr: u32) -> Result<ReturnCode, TrapReason> {
 		ctx.charge_gas(RuntimeCosts::RemoveDependency)?;
 		let code_hash = ctx.read_sandbox_memory_as(memory, code_hash_ptr)?;
-		ctx.ext.remove_dependency(code_hash)?;
+		ctx.ext.remove_dependency(&code_hash)?;
 		Ok(ReturnCode::Success)
 	}
 }

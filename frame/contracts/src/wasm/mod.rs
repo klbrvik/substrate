@@ -661,8 +661,8 @@ mod tests {
 			Ok(())
 		}
 
-		fn remove_dependency(&mut self, code: CodeHash<Self::T>) -> Result<(), DispatchError> {
-			self.dependencies.borrow_mut().remove(&code);
+		fn remove_dependency(&mut self, code: &CodeHash<Self::T>) -> Result<(), DispatchError> {
+			self.dependencies.borrow_mut().remove(code);
 			Ok(())
 		}
 	}

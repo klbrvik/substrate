@@ -5129,7 +5129,7 @@ fn delegate_call_indeterministic_code() {
 
 #[test]
 fn add_remove_dependency_works() {
-	let (wasm_caller, _) = compile_module::<Test>("add_dependency").unwrap();
+	let (wasm_caller, _) = compile_module::<Test>("add_remove_dependency").unwrap();
 	let (wasm_callee, code_hash) = compile_module::<Test>("dummy").unwrap();
 
 	let input = (0u32, code_hash);

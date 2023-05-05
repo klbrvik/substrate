@@ -227,8 +227,8 @@ impl<T: Config> ContractInfo<T> {
 	/// Remove a `code_hash` dependency from the contract.
 	///
 	/// Returns an error if the dependency doesn't exist.
-	pub fn remove_dependency(&mut self, dep: CodeHash<T>) -> Result<BalanceOf<T>, DispatchError> {
-		self.dependencies.remove(&dep).ok_or(Error::<T>::DependencyNotFound.into())
+	pub fn remove_dependency(&mut self, code_hash: &CodeHash<T>) -> Result<BalanceOf<T>, DispatchError> {
+		self.dependencies.remove(code_hash).ok_or(Error::<T>::DependencyNotFound.into())
 	}
 
 	#[cfg(test)]

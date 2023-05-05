@@ -318,14 +318,14 @@ pub trait Ext: sealing::Sealed {
 	///
 	/// Returns an error if we have reached the maximum number of dependencies, or the dependency
 	/// already exists.
-	fn add_dependency(&mut self, _code: CodeHash<Self::T>) -> Result<(), DispatchError>;
+	fn add_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError>;
 
 	/// Remove a contract dependency.
 	/// This is the counterpart of `add_dependency`. This method will decrease the reference count
 	/// And refund the deposit that was charged by `add_dependency`.
 	///
 	/// Returns an error if the dependency does not exist.
-	fn remove_dependency(&mut self, _code: CodeHash<Self::T>) -> Result<(), DispatchError>;
+	fn remove_dependency(&mut self, code_hash: &CodeHash<Self::T>) -> Result<(), DispatchError>;
 }
 
 /// Describes the different functions that can be exported by an [`Executable`].
@@ -1495,11 +1495,11 @@ where
 		info.add_dependency(code_hash, deposit)
 	}
 
-	fn remove_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError> {
+	fn remove_dependency(&mut self, code_hash: &CodeHash<Self::T>) -> Result<(), DispatchError> {
 		let frame = self.top_frame_mut();
 		let info = frame.contract_info.get(&frame.account_id);
 		let deposit = info.remove_dependency(code_hash)?;
-		decrement_refcount::<T>(code_hash);
+		decrement_refcount::<T>(*code_hash);
 		frame
 			.nested_storage
 			.charge_dependency(info.deposit_account(), &StorageDeposit::Refund(deposit));
