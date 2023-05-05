@@ -600,7 +600,7 @@ fn instantiate_and_call_and_deposit_event() {
 					phase: Phase::Initialization,
 					event: RuntimeEvent::Balances(pallet_balances::Event::Endowed {
 						account: deposit_account.clone(),
-						free_balance: 131,
+						free_balance: 132,
 					}),
 					topics: vec![],
 				},
@@ -609,7 +609,7 @@ fn instantiate_and_call_and_deposit_event() {
 					event: RuntimeEvent::Balances(pallet_balances::Event::Transfer {
 						from: ALICE,
 						to: deposit_account.clone(),
-						amount: 131,
+						amount: 132,
 					}),
 					topics: vec![],
 				},
@@ -932,7 +932,7 @@ fn deploy_and_call_other_contract() {
 					phase: Phase::Initialization,
 					event: RuntimeEvent::Balances(pallet_balances::Event::Endowed {
 						account: deposit_account.clone(),
-						free_balance: 131,
+						free_balance: 132,
 					}),
 					topics: vec![],
 				},
@@ -941,7 +941,7 @@ fn deploy_and_call_other_contract() {
 					event: RuntimeEvent::Balances(pallet_balances::Event::Transfer {
 						from: ALICE,
 						to: deposit_account.clone(),
-						amount: 131,
+						amount: 132,
 					}),
 					topics: vec![],
 				},
