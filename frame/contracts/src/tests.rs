@@ -5239,7 +5239,7 @@ fn add_remove_dependency_works() {
 		Balances::make_free_balance_be(&ALICE, 10_000);
 		dbg!("BEFORE", test_utils::get_balance(&ALICE));
 		dbg!("BEFORE", test_utils::get_balance(contract.deposit_account()));
-		dbg!("BEFORE", test_utils::get_balance(&addr_caller));
+		dbg!("BEFORE", test_utils::get_balance(&addr_calle));
 
 		// Call terninate should work.
 		assert_ok!(call(&addr_caller, &terminate_input).result);
