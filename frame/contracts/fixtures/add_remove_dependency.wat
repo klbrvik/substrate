@@ -3,8 +3,15 @@
 	(import "seal0" "add_dependency" (func $add_dependency (param i32) (result i32)))
 	(import "seal0" "remove_dependency" (func $remove_dependency (param i32) (result i32)))
 	(import "seal0" "seal_input" (func $seal_input (param i32 i32)))
+	(import "seal0" "seal_terminate" (func $seal_terminate (param i32 i32)))
 	(import "seal0" "seal_delegate_call" (func $seal_delegate_call (param i32 i32 i32 i32 i32 i32) (result i32)))
 	(import "env" "memory" (memory 1 1))
+
+	;; [100, 132) Address of Alice
+	(data (i32.const 100)
+		"\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01"
+		"\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01"
+	)
 
 	(func $assert (param i32)
 		(block $ok
@@ -64,6 +71,18 @@
 						(get_local $code_hash_ptr)
 					)
 				))
+			)
+			(else)
+		)
+
+		;; Call terminate when action == 3.
+		(if (i32.eq (get_local $action) (i32.const 3))
+		    (then
+				(call $seal_terminate
+					(i32.const 100)	;; Pointer to beneficiary address
+					(i32.const 32)	;; Length of beneficiary address
+				)
+				(unreachable) ;; seal_terminate never returns
 			)
 			(else)
 		)

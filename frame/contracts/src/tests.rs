@@ -5132,9 +5132,11 @@ fn add_remove_dependency_works() {
 	let (wasm_caller, _) = compile_module::<Test>("add_remove_dependency").unwrap();
 	let (wasm_callee, code_hash) = compile_module::<Test>("dummy").unwrap();
 
+	// Define inputs, for calling add_remove_dependency. See the contract for more details.
 	let input = (0u32, code_hash);
 	let add_dependency_input = (1u32, code_hash);
 	let remove_dependency_input = (2u32, code_hash);
+	let terminate_input = (3u32, code_hash);
 
 	// Instantiate the caller contract with the given input.
 	let instantiate = |input: &(u32, H256)| {
@@ -5175,7 +5177,8 @@ fn add_remove_dependency_works() {
 
 		// Upload the delegated code.
 		let CodeUploadReturnValue { deposit, .. } =
-			Contracts::bare_upload_code(ALICE, wasm_callee, None, Determinism::Enforced).unwrap();
+			Contracts::bare_upload_code(ALICE, wasm_callee.clone(), None, Determinism::Enforced)
+				.unwrap();
 
 		// Instantiate should now works.
 		let addr_caller = instantiate(&add_dependency_input).result.unwrap().account_id;
@@ -5224,6 +5227,28 @@ fn add_remove_dependency_works() {
 
 		// Calling should fail since the delegated contract is not on chain anymore.
 		assert_err!(call(&addr_caller, &input).result, Error::<Test>::ContractTrapped);
+
+		// put back the delegated on chain
+		Contracts::bare_upload_code(ALICE, wasm_callee, None, Determinism::Enforced).unwrap();
+
+		// Restore initial deposit limit and add dependency again.
+		DEFAULT_DEPOSIT_LIMIT.with(|c| *c.borrow_mut() = 10_000_000);
+		call(&addr_caller, &add_dependency_input).result.unwrap();
+
+		// TODO the fund should be refundedj
+		Balances::make_free_balance_be(&ALICE, 10_000);
+		dbg!("BEFORE", test_utils::get_balance(&ALICE));
+		dbg!("BEFORE", test_utils::get_balance(contract.deposit_account()));
+		dbg!("BEFORE", test_utils::get_balance(&addr_caller));
+
+		// Call terninate should work.
+		assert_ok!(call(&addr_caller, &terminate_input).result);
+
+		// TODO the fund should be refundedj
+		dbg!("AFTER", test_utils::get_balance(&ALICE));
+
+		// Terminate should also remove the dependency, so we can remove the code.
+		assert_ok!(Contracts::remove_code(RuntimeOrigin::signed(ALICE), code_hash));
 	});
 }
 

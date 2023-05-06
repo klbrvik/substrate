@@ -234,7 +234,7 @@ impl<T: Config> ContractInfo<T> {
 		self.dependencies.remove(code_hash).ok_or(Error::<T>::DependencyNotFound.into())
 	}
 
-	#[cfg(test)]
+	/// Returns the dependencies of the contract.
 	pub fn dependencies(&self) -> &BoundedBTreeMap<CodeHash<T>, BalanceOf<T>, ConstU32<32>> {
 		&self.dependencies
 	}

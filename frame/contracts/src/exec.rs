@@ -1276,6 +1276,11 @@ where
 		info.queue_trie_for_deletion();
 		ContractInfoOf::<T>::remove(&frame.account_id);
 		E::remove_user(info.code_hash);
+
+		for code_hash in info.dependencies().keys() {
+			E::remove_user(*code_hash);
+		}
+
 		Contracts::<T>::deposit_event(
 			vec![T::Hashing::hash_of(&frame.account_id), T::Hashing::hash_of(&beneficiary)],
 			Event::Terminated {
