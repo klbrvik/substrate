@@ -5235,17 +5235,10 @@ fn add_remove_dependency_works() {
 		DEFAULT_DEPOSIT_LIMIT.with(|c| *c.borrow_mut() = 10_000_000);
 		call(&addr_caller, &add_dependency_input).result.unwrap();
 
-		// TODO the fund should be refundedj
-		Balances::make_free_balance_be(&ALICE, 10_000);
-		dbg!("BEFORE", test_utils::get_balance(&ALICE));
-		dbg!("BEFORE", test_utils::get_balance(contract.deposit_account()));
-		dbg!("BEFORE", test_utils::get_balance(&addr_calle));
-
 		// Call terninate should work.
+		let balance_before = test_utils::get_balance(&ALICE);
 		assert_ok!(call(&addr_caller, &terminate_input).result);
-
-		// TODO the fund should be refundedj
-		dbg!("AFTER", test_utils::get_balance(&ALICE));
+		assert_eq!(test_utils::get_balance(&ALICE), balance_before + 2 * ED + dependency_deposit);
 
 		// Terminate should also remove the dependency, so we can remove the code.
 		assert_ok!(Contracts::remove_code(RuntimeOrigin::signed(ALICE), code_hash));

@@ -1277,8 +1277,12 @@ where
 		ContractInfoOf::<T>::remove(&frame.account_id);
 		E::remove_user(info.code_hash);
 
-		for code_hash in info.dependencies().keys() {
+		for (code_hash, deposit) in info.dependencies() {
 			E::remove_user(*code_hash);
+			frame.nested_storage.charge_dependency(
+				info.deposit_account(),
+				&StorageDeposit::Refund(deposit.clone()),
+			);
 		}
 
 		Contracts::<T>::deposit_event(
