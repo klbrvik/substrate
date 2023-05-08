@@ -1493,20 +1493,21 @@ where
 	fn add_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError> {
 		let frame = self.top_frame_mut();
 		let info = frame.contract_info.get(&frame.account_id);
-
-		increment_refcount::<T>(code_hash)?;
 		let owner_info = OwnerInfoOf::<T>::get(code_hash).ok_or(Error::<T>::ContractNotFound)?;
 		let deposit = Perbill::from_percent(30).mul_ceil(owner_info.deposit());
 
+		info.add_dependency(code_hash, deposit)?;
+		increment_refcount::<T>(code_hash)?;
 		frame
 			.nested_storage
 			.charge_dependency(info.deposit_account(), &StorageDeposit::Charge(deposit));
-		info.add_dependency(code_hash, deposit)
+		Ok(())
 	}
 
 	fn remove_dependency(&mut self, code_hash: &CodeHash<Self::T>) -> Result<(), DispatchError> {
 		let frame = self.top_frame_mut();
 		let info = frame.contract_info.get(&frame.account_id);
+
 		let deposit = info.remove_dependency(code_hash)?;
 		decrement_refcount::<T>(*code_hash);
 		frame

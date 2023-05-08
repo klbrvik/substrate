@@ -67,9 +67,9 @@ pub struct ContractInfo<T: Config> {
 	/// We need to store this information separately so it is not used when calculating any refunds
 	/// since the base deposit can only ever be refunded on contract termination.
 	storage_base_deposit: BalanceOf<T>,
-
-	/// This tracks the code hash and storage deposit paid to ensure that these dependencies don't
-	/// get removed and thus can be used for delegate calls.
+	/// Map of code hashes and deposit balances for delegate dependencies.
+	/// These values are used to ensure that dependencies are not removed from the chain state and
+	/// can be safely used for delegate calls.
 	dependencies: BoundedBTreeMap<CodeHash<T>, BalanceOf<T>, ConstU32<32>>,
 }
 

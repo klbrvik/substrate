@@ -222,17 +222,11 @@ pub enum RuntimeCosts {
 	/// Weight of calling `seal_random`. It includes the weight for copying the subject.
 	Random,
 	/// Weight of calling `seal_deposit_event` with the given number of topics and event size.
-	DepositEvent {
-		num_topic: u32,
-		len: u32,
-	},
+	DepositEvent { num_topic: u32, len: u32 },
 	/// Weight of calling `seal_debug_message` per byte of passed message.
 	DebugMessage(u32),
 	/// Weight of calling `seal_set_storage` for the given storage item sizes.
-	SetStorage {
-		old_bytes: u32,
-		new_bytes: u32,
-	},
+	SetStorage { old_bytes: u32, new_bytes: u32 },
 	/// Weight of calling `seal_clear_storage` per cleared byte.
 	ClearStorage(u32),
 	/// Weight of calling `seal_contains_storage` per byte of the checked item.
@@ -252,10 +246,7 @@ pub enum RuntimeCosts {
 	/// Weight per byte that is cloned by supplying the `CLONE_INPUT` flag.
 	CallInputCloned(u32),
 	/// Weight of calling `seal_instantiate` for the given input length and salt.
-	InstantiateBase {
-		input_data_len: u32,
-		salt_len: u32,
-	},
+	InstantiateBase { input_data_len: u32, salt_len: u32 },
 	/// Weight of the transfer performed during an instantiate.
 	InstantiateSurchargeTransfer,
 	/// Weight of calling `seal_hash_sha_256` for the given input size.
@@ -284,7 +275,9 @@ pub enum RuntimeCosts {
 	AccountEntranceCount,
 	/// Weight of calling `instantiation_nonce`
 	InstantationNonce,
+	/// Weight of calling `add_dependency`
 	AddDependency,
+	/// Weight of calling `remove_dependency`
 	RemoveDependency,
 }
 

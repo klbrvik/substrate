@@ -24,8 +24,12 @@
 
 	;; This function loads input data and performs the action specified.
 	;; The first 4 bytes of the input specify the action to perform.
-	;; if the action is 1 we call add_dependency, if the action is 2 we call remove_dependency.
 	;; The next 32 bytes specify the code hash to use when calling add_dependency or remove_dependency.
+	;; Actions are:
+	;; 1: call add_dependency
+	;; 2: call remove_dependency.
+	;; 3: call terminate.
+	;; Any other value is a no-op.
 	(func $load_input
 		(local $action i32)
 		(local $code_hash_ptr i32)
@@ -33,12 +37,12 @@
 	    ;; Store available input size at offset 0.
         (i32.store (i32.const 0) (i32.const 512))
 
-		;; Read input data
+		;; Read input data.
 		(call $seal_input (i32.const 4) (i32.const 0))
 
 		;; Input data layout.
 		;; [0..4) - size of the call
-		;; [4..8) - action to perform before calling delegate_call (1: add_dependency, 2: remove_dependency, default: nothing)
+		;; [4..8) - action to perform
 		;; [8..42) - code hash of the callee
 		(set_local $action (i32.load (i32.const 4)))
 		(set_local $code_hash_ptr (i32.const 8))

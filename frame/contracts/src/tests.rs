@@ -5132,7 +5132,8 @@ fn add_remove_dependency_works() {
 	let (wasm_caller, _) = compile_module::<Test>("add_remove_dependency").unwrap();
 	let (wasm_callee, code_hash) = compile_module::<Test>("dummy").unwrap();
 
-	// Define inputs, for calling add_remove_dependency. See the contract for more details.
+	// Define inputs with various actions to test adding / removing dependencies.
+	// See the contract for more details.
 	let input = (0u32, code_hash);
 	let add_dependency_input = (1u32, code_hash);
 	let remove_dependency_input = (2u32, code_hash);
@@ -5228,14 +5229,12 @@ fn add_remove_dependency_works() {
 		// Calling should fail since the delegated contract is not on chain anymore.
 		assert_err!(call(&addr_caller, &input).result, Error::<Test>::ContractTrapped);
 
-		// put back the delegated on chain
-		Contracts::bare_upload_code(ALICE, wasm_callee, None, Determinism::Enforced).unwrap();
-
-		// Restore initial deposit limit and add dependency again.
+		// Restore initial deposit limit and add the dependency back.
 		DEFAULT_DEPOSIT_LIMIT.with(|c| *c.borrow_mut() = 10_000_000);
+		Contracts::bare_upload_code(ALICE, wasm_callee, None, Determinism::Enforced).unwrap();
 		call(&addr_caller, &add_dependency_input).result.unwrap();
 
-		// Call terninate should work.
+		// Call terninate should work, and return the deposit.
 		let balance_before = test_utils::get_balance(&ALICE);
 		assert_ok!(call(&addr_caller, &terminate_input).result);
 		assert_eq!(test_utils::get_balance(&ALICE), balance_before + 2 * ED + dependency_deposit);

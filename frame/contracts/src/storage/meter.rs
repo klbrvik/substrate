@@ -412,14 +412,12 @@ where
 		deposit_account: &DepositAccount<T>,
 		amount: &DepositOf<T>,
 	) {
-		let charge = Charge {
+		self.total_deposit = self.total_deposit.saturating_add(amount);
+		self.charges.push(Charge {
 			deposit_account: deposit_account.clone(),
 			amount: amount.clone(),
 			terminated: false,
-		};
-
-		self.total_deposit = self.total_deposit.saturating_add(amount);
-		self.charges.push(charge);
+		});
 	}
 
 	/// Charge from `origin` a storage deposit for contract instantiation.
