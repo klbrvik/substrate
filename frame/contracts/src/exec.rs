@@ -311,16 +311,18 @@ pub trait Ext: sealing::Sealed {
 	/// Returns a nonce that is incremented for every instantiated contract.
 	fn nonce(&mut self) -> u64;
 
-	/// Add a contract dependency, This is useful for contract delegation, to make sure that the
-	/// delegated contract is not removed while it is still in use.
-	/// This will increase the reference count of the code hash, and charge a deposit of 30% of the
-	/// code deposit.
+	/// Add a contract dependency.
+	///
+	/// This is useful for contract delegation, to make sure that the delegated contract is not
+	/// removed while it is still in use. This will increase the reference count of the code hash,
+	/// and charge a deposit of 30% of the code deposit.
 	///
 	/// Returns an error if we have reached the maximum number of dependencies, or the dependency
 	/// already exists.
 	fn add_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError>;
 
 	/// Remove a contract dependency.
+	///
 	/// This is the counterpart of `add_dependency`. This method will decrease the reference count
 	/// And refund the deposit that was charged by `add_dependency`.
 	///
