@@ -1492,7 +1492,7 @@ where
 	fn add_dependency(&mut self, code_hash: CodeHash<Self::T>) -> Result<(), DispatchError> {
 		let frame = self.top_frame_mut();
 		let info = frame.contract_info.get(&frame.account_id);
-		let owner_info = OwnerInfoOf::<T>::get(code_hash).ok_or(Error::<T>::ContractNotFound)?;
+		let owner_info = OwnerInfoOf::<T>::get(code_hash).ok_or(Error::<T>::CodeNotFound)?;
 		let deposit = Perbill::from_percent(30).mul_ceil(owner_info.deposit());
 
 		info.add_dependency(code_hash, deposit)?;
