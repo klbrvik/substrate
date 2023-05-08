@@ -1279,10 +1279,9 @@ where
 
 		for (code_hash, deposit) in info.dependencies() {
 			E::remove_user(*code_hash);
-			frame.nested_storage.charge_dependency(
-				info.deposit_account(),
-				&StorageDeposit::Refund(deposit.clone()),
-			);
+			frame
+				.nested_storage
+				.charge_dependency(info.deposit_account(), &StorageDeposit::Refund(*deposit));
 		}
 
 		Contracts::<T>::deposit_event(
