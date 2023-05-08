@@ -190,7 +190,6 @@ impl<T: Config> GasMeter<T> {
 	/// of every host function.
 	///
 	/// Returns the updated `ref_time` value for the gas left in the meter.
-	/// TODO : add scaling
 	/// Normally this would never fail, as engine should fail first when out of gas.
 	pub fn sync_reftime(&mut self, consumed: u64) -> Result<u64, DispatchError> {
 		let ref_time = self.gas_left.ref_time_mut();
