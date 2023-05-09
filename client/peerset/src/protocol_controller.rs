@@ -280,8 +280,9 @@ impl ProtocolController {
 	/// Process connection event.
 	fn process_event(&mut self, event: Event) {
 		match event {
-			Event::IncomingConnection(peer_id, index) =>
-				self.on_incoming_connection(peer_id, index),
+			Event::IncomingConnection(peer_id, index) => {
+				self.on_incoming_connection(peer_id, index)
+			},
 			Event::Dropped(peer_id) => self.on_peer_dropped(peer_id),
 		}
 	}
@@ -293,8 +294,9 @@ impl ProtocolController {
 			Action::RemoveReservedPeer(peer_id) => self.on_remove_reserved_peer(peer_id),
 			Action::SetReservedPeers(peer_ids) => self.on_set_reserved_peers(peer_ids),
 			Action::SetReservedOnly(reserved_only) => self.on_set_reserved_only(reserved_only),
-			Action::GetReservedPeers(pending_response) =>
-				self.on_get_reserved_peers(pending_response),
+			Action::GetReservedPeers(pending_response) => {
+				self.on_get_reserved_peers(pending_response)
+			},
 		}
 	}
 
@@ -345,7 +347,7 @@ impl ProtocolController {
 				target: LOG_TARGET,
 				"Trying to add an already reserved node as reserved: {peer_id}.",
 			);
-			return
+			return;
 		}
 
 		// Get the peer out of non-reserved peers if it's there.
@@ -380,7 +382,7 @@ impl ProtocolController {
 			Some(state) => state,
 			None => {
 				warn!(target: LOG_TARGET, "Trying to remove unknown reserved node: {peer_id}.");
-				return
+				return;
 			},
 		};
 
@@ -440,7 +442,7 @@ impl ProtocolController {
 		self.reserved_only = reserved_only;
 
 		if !reserved_only {
-			return self.alloc_slots()
+			return self.alloc_slots();
 		}
 
 		// Disconnect all non-reserved peers.
@@ -471,7 +473,7 @@ impl ProtocolController {
 
 		if self.reserved_only && !self.reserved_nodes.contains_key(&peer_id) {
 			self.reject_connection(incoming_index);
-			return
+			return;
 		}
 
 		// Check if the node is reserved first.
@@ -493,7 +495,7 @@ impl ProtocolController {
 					}
 				},
 			}
-			return
+			return;
 		}
 
 		// If we're already connected, pretend we are not connected and decide on the node again.
@@ -513,12 +515,12 @@ impl ProtocolController {
 
 		if self.num_in >= self.max_in {
 			self.reject_connection(incoming_index);
-			return
+			return;
 		}
 
 		if self.is_banned(&peer_id) {
 			self.reject_connection(incoming_index);
-			return
+			return;
 		}
 
 		self.num_in += 1;
@@ -609,7 +611,7 @@ impl ProtocolController {
 
 		// Nothing more to do if we're in reserved-only mode or don't have slots available.
 		if self.reserved_only || self.num_out >= self.max_out {
-			return
+			return;
 		}
 
 		// Fill available slots.

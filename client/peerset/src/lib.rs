@@ -32,9 +32,6 @@
 //! In addition, for each, set, the peerset also holds a list of reserved nodes towards which it
 //! will at all time try to maintain a connection with.
 
-mod peer_store;
-mod protocol_controller;
-
 use peer_store::{PeerReputationProvider, PeerStore, PeerStoreHandle};
 use protocol_controller::{ProtocolController, ProtocolHandle};
 
@@ -52,6 +49,9 @@ use std::{
 	pin::Pin,
 	task::{Context, Poll},
 };
+
+pub mod peer_store;
+pub mod protocol_controller;
 
 pub use libp2p::PeerId;
 
@@ -362,29 +362,34 @@ impl Stream for Peerset {
 	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
 		if let Poll::Ready(msg) = self.from_controllers.poll_next_unpin(cx) {
 			if let Some(msg) = msg {
-				return Poll::Ready(Some(msg))
+				return Poll::Ready(Some(msg));
 			} else {
 				debug!(
 					target: LOG_TARGET,
 					"All `ProtocolController`s have terminated, terminating `Peerset`."
 				);
-				return Poll::Ready(None)
+				return Poll::Ready(None);
 			}
 		}
 
 		while let Poll::Ready(action) = self.from_handle.poll_next_unpin(cx) {
 			if let Some(action) = action {
 				match action {
-					Action::AddReservedPeer(set_id, peer_id) =>
-						self.protocol_handles[set_id.0].add_reserved_peer(peer_id),
-					Action::RemoveReservedPeer(set_id, peer_id) =>
-						self.protocol_handles[set_id.0].remove_reserved_peer(peer_id),
-					Action::SetReservedPeers(set_id, peer_ids) =>
-						self.protocol_handles[set_id.0].set_reserved_peers(peer_ids),
-					Action::SetReservedOnly(set_id, reserved_only) =>
-						self.protocol_handles[set_id.0].set_reserved_only(reserved_only),
-					Action::ReportPeer(peer_id, score_diff) =>
-						self.peer_store_handle.report_peer(peer_id, score_diff),
+					Action::AddReservedPeer(set_id, peer_id) => {
+						self.protocol_handles[set_id.0].add_reserved_peer(peer_id)
+					},
+					Action::RemoveReservedPeer(set_id, peer_id) => {
+						self.protocol_handles[set_id.0].remove_reserved_peer(peer_id)
+					},
+					Action::SetReservedPeers(set_id, peer_ids) => {
+						self.protocol_handles[set_id.0].set_reserved_peers(peer_ids)
+					},
+					Action::SetReservedOnly(set_id, reserved_only) => {
+						self.protocol_handles[set_id.0].set_reserved_only(reserved_only)
+					},
+					Action::ReportPeer(peer_id, score_diff) => {
+						self.peer_store_handle.report_peer(peer_id, score_diff)
+					},
 					Action::AddKnownPeer(peer_id) => self.peer_store_handle.add_known_peer(peer_id),
 					Action::PeerReputation(peer_id, pending_response) => {
 						let _ =
@@ -393,13 +398,13 @@ impl Stream for Peerset {
 				}
 			} else {
 				debug!(target: LOG_TARGET, "`PeersetHandle` was dropped, terminating `Peerset`.");
-				return Poll::Ready(None)
+				return Poll::Ready(None);
 			}
 		}
 
 		if let Poll::Ready(()) = self.peer_store_future.poll_unpin(cx) {
 			debug!(target: LOG_TARGET, "`PeerStore` has terminated, terminating `PeerSet`.");
-			return Poll::Ready(None)
+			return Poll::Ready(None);
 		}
 
 		if let Poll::Ready(_) = self.protocol_controller_futures.poll_unpin(cx) {
@@ -407,7 +412,7 @@ impl Stream for Peerset {
 				target: LOG_TARGET,
 				"All `ProtocolHandle`s have terminated, terminating `PeerSet`."
 			);
-			return Poll::Ready(None)
+			return Poll::Ready(None);
 		}
 
 		Poll::Pending

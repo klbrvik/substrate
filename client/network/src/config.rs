@@ -40,6 +40,7 @@ pub use sc_network_common::{
 	sync::warp::WarpSyncProvider,
 	ExHashT,
 };
+use sc_peerset::{peer_store::PeerStore, protocol_controller::ProtocolController};
 use sc_utils::mpsc::TracingUnboundedSender;
 use sp_runtime::traits::Block as BlockT;
 
@@ -107,8 +108,9 @@ pub fn parse_str_addr(addr_str: &str) -> Result<(PeerId, Multiaddr), ParseErr> {
 /// Splits a Multiaddress into a Multiaddress and PeerId.
 pub fn parse_addr(mut addr: Multiaddr) -> Result<(PeerId, Multiaddr), ParseErr> {
 	let who = match addr.pop() {
-		Some(multiaddr::Protocol::P2p(key)) =>
-			PeerId::from_multihash(key).map_err(|_| ParseErr::InvalidPeerId)?,
+		Some(multiaddr::Protocol::P2p(key)) => {
+			PeerId::from_multihash(key).map_err(|_| ParseErr::InvalidPeerId)?
+		},
 		_ => return Err(ParseErr::PeerIdMissing),
 	};
 
@@ -784,6 +786,9 @@ pub struct FullNetworkConfiguration {
 
 	/// Network configuration.
 	pub network_config: NetworkConfiguration,
+
+	/// Peer store.
+	pub(crate) peer_store: PeerStore,
 }
 
 impl FullNetworkConfiguration {
@@ -793,7 +798,34 @@ impl FullNetworkConfiguration {
 			notification_protocols: Vec::new(),
 			request_response_protocols: Vec::new(),
 			network_config: network_config.clone(),
+			peer_store: PeerStore::new(vec![]), // TODO: bootnodes
 		}
+	}
+
+	/// Create new notification protocol and return `Box<NotificationService>` which allows interacting with the protocol.
+	pub fn add_notification_protocol_new(
+		&mut self,
+		protocol_name: ProtocolName,
+		fallback_names: Vec<ProtocolName>,
+		max_notification_size: u64,
+		handshake: Option<NotificationHandshake>,
+		set_config: SetConfig,
+	) -> Box<dyn NotificationService> {
+		let peerstore = self.peer_store.handle();
+		let protocol_controller = ProtocolController::new(set_config, Box::new(peerstore));
+		let (protocol_handle_pair, notification_service) =
+			notification_service(protocol_name.clone());
+
+		self.notification_protocols.push(NonDefaultSetConfig {
+			protocol_name,
+			max_notification_size,
+			fallback_names,
+			handshake,
+			set_config,
+			protocol_handle_pair: Some(protocol_handle_pair),
+		});
+
+		notification_service
 	}
 
 	/// Add a notification protocol.
