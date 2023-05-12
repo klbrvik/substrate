@@ -244,12 +244,12 @@
 //!
 //! More precise usage details are still being worked on and will likely change in the future.
 
-mod behaviour;
-mod discovery;
-mod peer_info;
-mod protocol;
-mod service;
-mod transport;
+pub mod behaviour;
+pub mod discovery;
+pub mod peer_info;
+pub mod protocol;
+pub mod service;
+pub mod transport;
 
 pub mod config;
 pub mod error;
